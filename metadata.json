@@ -1,0 +1,5 @@
+{
+  "name": "MedRank Tracker",
+  "description": "A comprehensive subject-wise score tracker for MBBS students preparing for NEET PG and INI CET, featuring automated score calculation, performance visualization, and AI-powered analysis.",
+  "requestFramePermissions": []
+}
