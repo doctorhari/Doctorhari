@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet, Download } from 'lucide-react';
+import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet, Download, Trophy, X } from 'lucide-react';
 import { GrandTest, SubjectCategory } from './types';
 import { INITIAL_TESTS_DATA_KEY, SUBJECTS, CATEGORIES } from './constants';
 import ScoreTable from './components/ScoreTable';
@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<SubjectCategory | 'ALL'>('ALL');
   const [aiAnalysis, setAiAnalysis] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showMotivation, setShowMotivation] = useState(false);
 
   // Load test data
   useEffect(() => {
@@ -28,12 +29,27 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Save test data
+  // Save test data & Check for motivation notification
   useEffect(() => {
     if (tests.length > 0) {
       localStorage.setItem(INITIAL_TESTS_DATA_KEY, JSON.stringify(tests));
+      
+      // Motivation Check: If last test was > 14 days ago
+      const sortedTests = [...tests].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const lastTestDate = new Date(sortedTests[0].date);
+      const today = new Date();
+      const diffTime = Math.abs(today.getTime() - lastTestDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+      if (diffDays > 14) {
+        setShowMotivation(true);
+      } else {
+        setShowMotivation(false);
+      }
+
     } else {
       localStorage.removeItem(INITIAL_TESTS_DATA_KEY);
+      setShowMotivation(false);
     }
   }, [tests]);
 
@@ -272,6 +288,31 @@ const App: React.FC = () => {
         {activeTab === 'DASHBOARD' && (
           <div className="space-y-6">
             
+            {/* Motivation Notification Banner */}
+            {showMotivation && (
+              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg shadow-sm flex items-start justify-between animate-fade-in">
+                <div className="flex gap-4">
+                  <div className="bg-orange-100 p-2 rounded-full flex-shrink-0">
+                     <Trophy className="text-orange-600 h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-orange-800">Time for your next Grand Test!</h3>
+                    <p className="text-orange-700 text-sm mt-1 leading-relaxed">
+                      It's been over 2 weeks since your last test. You are missing out on critical practice. 
+                      <br/>
+                      Write a GT today to secure that <span className="font-black bg-orange-200 px-1 rounded text-orange-900">Two Digit Rank</span>!
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowMotivation(false)} 
+                  className="text-orange-400 hover:text-orange-600 hover:bg-orange-100 p-1 rounded-full transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
+
             {/* Filters */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                <div>
