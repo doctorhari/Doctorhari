@@ -196,7 +196,8 @@ const App: React.FC = () => {
 
     // Append Sheet and Write File
     XLSX.utils.book_append_sheet(wb, ws, "MedRank Scores");
-    XLSX.writeFile(wb, `MedRank_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    // Changed filename to be static to allow easier overwriting
+    XLSX.writeFile(wb, "MedRank_Master_Sheet.xlsx");
   };
 
   return (
