@@ -62,17 +62,17 @@ const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, on
         {subject.name}
       </div>
 
-      {(mode === 'NEET_PG' || mode === 'INI_CET') && (
+      {(mode === 'NEET_PG' || mode === 'INI_CET') ? (
         <>
           <div>
             <label className="block text-xs text-gray-400 md:hidden">Correct</label>
             <input
               type="number"
               min="0"
-              value={values.correct || ''}
-              onChange={(e) => onChange(subject.id, 'correct', parseInt(e.target.value) || 0)}
-              className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="Correct"
+              value={values.correct === 0 ? '' : values.correct}
+              onChange={(e) => onChange(subject.id, 'correct', e.target.value === '' ? 0 : parseInt(e.target.value))}
+              className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none placeholder-gray-300"
+              placeholder="0"
             />
           </div>
           <div>
@@ -80,39 +80,40 @@ const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, on
             <input
               type="number"
               min="0"
-              value={values.wrong || ''}
-              onChange={(e) => onChange(subject.id, 'wrong', parseInt(e.target.value) || 0)}
-              className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="Wrong"
+              value={values.wrong === 0 ? '' : values.wrong}
+              onChange={(e) => onChange(subject.id, 'wrong', e.target.value === '' ? 0 : parseInt(e.target.value))}
+              className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none placeholder-gray-300"
+              placeholder="0"
             />
           </div>
         </>
+      ) : (
+        <div className="hidden md:block md:col-span-2"></div>
       )}
-
-      {mode === 'CUSTOM' && <div className="col-span-2 hidden md:block"></div>}
 
       <div>
         <label className="block text-xs text-gray-400 md:hidden">Obtained</label>
         <input
           type="number"
-          value={values.obtained}
+          step="0.01"
+          value={values.obtained === 0 ? '' : values.obtained}
+          onChange={(e) => onChange(subject.id, 'obtained', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${mode !== 'CUSTOM' ? 'bg-gray-50 text-gray-500' : ''}`}
+          placeholder="0.00"
           readOnly={mode !== 'CUSTOM'}
-          onChange={(e) => onChange(subject.id, 'obtained', parseFloat(e.target.value) || 0)}
-          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${mode !== 'CUSTOM' ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
-          placeholder="Score"
         />
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 md:hidden">Total Marks</label>
+        <label className="block text-xs text-gray-400 md:hidden">Total</label>
         <input
           type="number"
           min="1"
-          value={values.total || ''}
+          value={values.total === 0 ? '' : values.total}
+          onChange={(e) => onChange(subject.id, 'total', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${mode !== 'CUSTOM' ? 'bg-gray-50 text-gray-500' : ''}`}
+          placeholder="0"
           readOnly={mode !== 'CUSTOM'}
-          onChange={(e) => onChange(subject.id, 'total', parseFloat(e.target.value) || 0)}
-          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${mode !== 'CUSTOM' ? 'bg-gray-100 text-gray-600' : ''}`}
-          placeholder="Max Marks"
         />
       </div>
     </div>
