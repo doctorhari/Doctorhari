@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet } from 'lucide-react';
+import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet, Download } from 'lucide-react';
 import { GrandTest, SubjectCategory } from './types';
-import { INITIAL_TESTS_DATA_KEY } from './constants';
+import { INITIAL_TESTS_DATA_KEY, SUBJECTS, CATEGORIES } from './constants';
 import ScoreTable from './components/ScoreTable';
 import AddTestModal from './components/AddTestModal';
 import { analyzePerformance } from './services/geminiService';
@@ -72,6 +72,133 @@ const App: React.FC = () => {
     setIsAnalyzing(false);
   };
 
+  const handleExportToExcel = () => {
+    if (tests.length === 0) {
+      alert("No data to export.");
+      return;
+    }
+
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      alert("Export library is loading. Please try again in a moment.");
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws: any = {};
+    
+    // Define column widths
+    const cols = [{ wch: 25 }]; // Subject
+    tests.forEach(() => cols.push({ wch: 12 })); // Tests
+    ws['!cols'] = cols;
+
+    let currentRow = 0;
+
+    // --- Helper to set cell with style ---
+    const setCell = (r: number, c: number, val: any, style: any = {}, mergeAcross: number = 0) => {
+      const cellRef = XLSX.utils.encode_cell({r, c});
+      ws[cellRef] = { 
+        v: val, 
+        t: typeof val === 'number' ? 'n' : 's',
+        s: style 
+      };
+      
+      if (mergeAcross > 0) {
+        if (!ws['!merges']) ws['!merges'] = [];
+        ws['!merges'].push({ s: { r, c }, e: { r, c: c + mergeAcross } });
+      }
+    };
+
+    // --- Styles ---
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "4F46E5" } }, // Indigo 600
+      alignment: { horizontal: "center", vertical: "center" },
+      border: { bottom: { style: "thin" }, top: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
+    };
+
+    const catStyles: Record<SubjectCategory, any> = {
+      RANK_BUILDING: {
+        font: { bold: true, color: { rgb: "1e3a8a" }, sz: 12 },
+        fill: { fgColor: { rgb: "DBEAFE" } }, // Blue 100
+        border: { bottom: { style: "thin" }, top: { style: "thin" } }
+      },
+      RANK_MAINTAINING: {
+        font: { bold: true, color: { rgb: "581c87" }, sz: 12 },
+        fill: { fgColor: { rgb: "F3E8FF" } }, // Purple 100
+        border: { bottom: { style: "thin" }, top: { style: "thin" } }
+      },
+      RANK_DECIDING: {
+        font: { bold: true, color: { rgb: "c2410c" }, sz: 12 },
+        fill: { fgColor: { rgb: "FFEDD5" } }, // Orange 100
+        border: { bottom: { style: "thin" }, top: { style: "thin" } }
+      }
+    };
+
+    const subjectStyle = {
+      alignment: { horizontal: "left" },
+      border: { bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
+    };
+
+    const scoreStyles = {
+      red: { 
+        fill: { fgColor: { rgb: "FCA5A5" } }, 
+        alignment: { horizontal: "center" },
+        border: { bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
+      },
+      yellow: { 
+        fill: { fgColor: { rgb: "FDE047" } }, 
+        alignment: { horizontal: "center" },
+        border: { bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
+      },
+      green: { 
+        fill: { fgColor: { rgb: "86EFAC" } }, 
+        alignment: { horizontal: "center" },
+        border: { bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
+      }
+    };
+
+    // --- 1. Main Header Row ---
+    setCell(currentRow, 0, "Subject", headerStyle);
+    tests.forEach((t, i) => {
+      setCell(currentRow, i + 1, t.name, headerStyle);
+    });
+    currentRow++;
+
+    // --- 2. Data Rows ---
+    (Object.keys(CATEGORIES) as SubjectCategory[]).forEach(cat => {
+      const catSubjects = SUBJECTS.filter(s => s.category === cat);
+      
+      // Category Header
+      setCell(currentRow, 0, CATEGORIES[cat], catStyles[cat], tests.length);
+      currentRow++;
+
+      // Subjects
+      catSubjects.forEach((subject) => {
+        setCell(currentRow, 0, subject.name, subjectStyle);
+        
+        tests.forEach((test, i) => {
+          const score = test.scores[subject.id];
+          const percentage = score ? score.percentage : 0;
+          
+          let style = scoreStyles.red;
+          if (percentage >= 80) style = scoreStyles.green;
+          else if (percentage >= 50) style = scoreStyles.yellow;
+
+          setCell(currentRow, i + 1, percentage, style);
+        });
+        currentRow++;
+      });
+    });
+
+    // Set Sheet Range
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: currentRow - 1, c: tests.length } });
+
+    // Append Sheet and Write File
+    XLSX.utils.book_append_sheet(wb, ws, "MedRank Scores");
+    XLSX.writeFile(wb, `MedRank_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       {/* Navbar */}
@@ -111,6 +238,16 @@ const App: React.FC = () => {
                   </div>
                 </button>
               </div>
+              
+              <button
+                onClick={handleExportToExcel}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm"
+                title="Download as Excel"
+              >
+                <Download size={18} />
+                <span className="hidden lg:inline">Export Excel</span>
+              </button>
+
               <button
                 onClick={() => {
                   setEditingTest(null);
