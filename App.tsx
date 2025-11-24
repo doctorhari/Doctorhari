@@ -1,34 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet, Download, Crown, LogOut } from 'lucide-react';
+import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet, Download } from 'lucide-react';
 import { GrandTest, SubjectCategory } from './types';
 import { INITIAL_TESTS_DATA_KEY, SUBJECTS, CATEGORIES } from './constants';
 import ScoreTable from './components/ScoreTable';
 import AddTestModal from './components/AddTestModal';
-import PricingModal from './components/PricingModal';
-import LoginScreen from './components/LoginScreen';
 import { analyzePerformance } from './services/geminiService';
 
 const App: React.FC = () => {
-  // User Session State
-  const [user, setUser] = useState<{name: string, email: string, avatar: string} | null>(null);
-  
   // App Data States
   const [tests, setTests] = useState<GrandTest[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [editingTest, setEditingTest] = useState<GrandTest | null>(null);
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'AI_INSIGHTS'>('DASHBOARD');
   const [filterCategory, setFilterCategory] = useState<SubjectCategory | 'ALL'>('ALL');
   const [aiAnalysis, setAiAnalysis] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // Check for logged-in user on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('medrank_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
 
   // Load test data
   useEffect(() => {
@@ -50,24 +36,6 @@ const App: React.FC = () => {
       localStorage.removeItem(INITIAL_TESTS_DATA_KEY);
     }
   }, [tests]);
-
-  const handleLogin = () => {
-    // Simulate successful Google Login response
-    const newUser = {
-      name: "Dr. Candidate",
-      email: "candidate@medrank.com",
-      avatar: "https://ui-avatars.com/api/?name=Dr+Candidate&background=4F46E5&color=fff&rounded=true&bold=true"
-    };
-    localStorage.setItem('medrank_user', JSON.stringify(newUser));
-    setUser(newUser);
-  };
-
-  const handleLogout = () => {
-    if (window.confirm("Are you sure you want to sign out?")) {
-      localStorage.removeItem('medrank_user');
-      setUser(null);
-    }
-  };
 
   const handleSaveTest = (testData: GrandTest) => {
     if (editingTest) {
@@ -232,11 +200,6 @@ const App: React.FC = () => {
     XLSX.writeFile(wb, "MedRank_Master_Sheet.xlsx");
   };
 
-  // Condition to render Login Screen
-  if (!user) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       {/* Navbar */}
@@ -253,15 +216,6 @@ const App: React.FC = () => {
             </div>
             <div className="flex items-center gap-4">
               
-              {/* Pro Button */}
-              <button
-                onClick={() => setIsPricingOpen(true)}
-                className="hidden md:flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm transition-all transform hover:scale-105"
-              >
-                <Crown size={14} fill="currentColor" />
-                <span>GO PRO</span>
-              </button>
-
               <div className="hidden md:flex space-x-1 bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setActiveTab('DASHBOARD')}
@@ -306,19 +260,6 @@ const App: React.FC = () => {
                 <Plus size={18} />
                 <span className="hidden sm:inline">Add GT</span>
               </button>
-
-              {/* User Profile / Logout */}
-              <div className="h-8 w-px bg-gray-200 mx-1 hidden md:block"></div>
-              <div className="flex items-center gap-3 pl-1">
-                 <img src={user.avatar} alt="Profile" className="w-8 h-8 rounded-full border border-gray-200" />
-                 <button 
-                  onClick={handleLogout} 
-                  className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50" 
-                  title="Sign Out"
-                 >
-                     <LogOut size={18} />
-                 </button>
-              </div>
             </div>
           </div>
         </div>
@@ -335,7 +276,7 @@ const App: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                <div>
                   <h1 className="text-2xl font-bold text-gray-900">Performance Dashboard</h1>
-                  <p className="text-gray-500 text-sm">Welcome, {user.name}. Tracking {tests.length} tests.</p>
+                  <p className="text-gray-500 text-sm">Welcome, Doctor. Tracking {tests.length} tests.</p>
                </div>
                
                <div className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-gray-200 shadow-sm">
@@ -442,11 +383,6 @@ const App: React.FC = () => {
           testCount={tests.length}
           initialData={editingTest || undefined}
         />
-      )}
-      
-      {/* Pricing Modal */}
-      {isPricingOpen && (
-        <PricingModal onClose={() => setIsPricingOpen(false)} />
       )}
     </div>
   );
