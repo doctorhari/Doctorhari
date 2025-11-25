@@ -113,7 +113,7 @@ const App: React.FC = () => {
     const ws: any = {};
     
     // Define column widths
-    const cols = [{ wch: 25 }]; // Subject
+    const cols = [{ wch: 30 }]; // Subject column width slightly increased
     filteredTests.forEach(() => cols.push({ wch: 12 })); // Tests
     ws['!cols'] = cols;
 
@@ -184,7 +184,9 @@ const App: React.FC = () => {
     };
 
     // --- 1. Main Header Row ---
-    setCell(currentRow, 0, "Subject", headerStyle);
+    // Updated header to include the exam mode name
+    setCell(currentRow, 0, `Subject / ${activeExamTab.replace('_', ' ')}`, headerStyle);
+    
     filteredTests.forEach((t, i) => {
       setCell(currentRow, i + 1, t.name, headerStyle);
     });
