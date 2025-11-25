@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet, Download, Trophy, X } from 'lucide-react';
-import { GrandTest, SubjectCategory } from './types';
+import { Plus, LayoutDashboard, BrainCircuit, Filter, FileSpreadsheet, Download, Trophy, X, Stethoscope, GraduationCap } from 'lucide-react';
+import { GrandTest, SubjectCategory, ExamMode } from './types';
 import { INITIAL_TESTS_DATA_KEY, SUBJECTS, CATEGORIES } from './constants';
 import ScoreTable from './components/ScoreTable';
 import AddTestModal from './components/AddTestModal';
@@ -12,7 +12,11 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTest, setEditingTest] = useState<GrandTest | null>(null);
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'AI_INSIGHTS'>('DASHBOARD');
+  
+  // Dashboard & Filter States
+  const [activeExamTab, setActiveExamTab] = useState<ExamMode>('NEET_PG');
   const [filterCategory, setFilterCategory] = useState<SubjectCategory | 'ALL'>('ALL');
+  
   const [aiAnalysis, setAiAnalysis] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showMotivation, setShowMotivation] = useState(false);
@@ -34,7 +38,7 @@ const App: React.FC = () => {
     if (tests.length > 0) {
       localStorage.setItem(INITIAL_TESTS_DATA_KEY, JSON.stringify(tests));
       
-      // Motivation Check: If last test was > 14 days ago
+      // Motivation Check: If last test was > 14 days ago (checking GLOBAL activity)
       const sortedTests = [...tests].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const lastTestDate = new Date(sortedTests[0].date);
       const today = new Date();
@@ -81,17 +85,21 @@ const App: React.FC = () => {
     setIsModalOpen(false);
   };
 
+  // Filter tests based on the selected Dashboard (NEET PG vs INI CET)
+  const filteredTests = tests.filter(test => test.mode === activeExamTab);
+
   const handleAnalyze = async () => {
-    if (tests.length === 0) return;
+    if (filteredTests.length === 0) return;
     setIsAnalyzing(true);
-    const result = await analyzePerformance(tests);
+    // Analyze only the tests visible in the current dashboard
+    const result = await analyzePerformance(filteredTests);
     setAiAnalysis(result);
     setIsAnalyzing(false);
   };
 
   const handleExportToExcel = () => {
-    if (tests.length === 0) {
-      alert("No data to export.");
+    if (filteredTests.length === 0) {
+      alert(`No ${activeExamTab.replace('_', ' ')} data to export.`);
       return;
     }
 
@@ -106,7 +114,7 @@ const App: React.FC = () => {
     
     // Define column widths
     const cols = [{ wch: 25 }]; // Subject
-    tests.forEach(() => cols.push({ wch: 12 })); // Tests
+    filteredTests.forEach(() => cols.push({ wch: 12 })); // Tests
     ws['!cols'] = cols;
 
     let currentRow = 0;
@@ -177,7 +185,7 @@ const App: React.FC = () => {
 
     // --- 1. Main Header Row ---
     setCell(currentRow, 0, "Subject", headerStyle);
-    tests.forEach((t, i) => {
+    filteredTests.forEach((t, i) => {
       setCell(currentRow, i + 1, t.name, headerStyle);
     });
     currentRow++;
@@ -187,14 +195,14 @@ const App: React.FC = () => {
       const catSubjects = SUBJECTS.filter(s => s.category === cat);
       
       // Category Header
-      setCell(currentRow, 0, CATEGORIES[cat], catStyles[cat], tests.length);
+      setCell(currentRow, 0, CATEGORIES[cat], catStyles[cat], filteredTests.length);
       currentRow++;
 
       // Subjects
       catSubjects.forEach((subject) => {
         setCell(currentRow, 0, subject.name, subjectStyle);
         
-        tests.forEach((test, i) => {
+        filteredTests.forEach((test, i) => {
           const score = test.scores[subject.id];
           const percentage = score ? score.percentage : 0;
           
@@ -209,12 +217,17 @@ const App: React.FC = () => {
     });
 
     // Set Sheet Range
-    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: currentRow - 1, c: tests.length } });
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: currentRow - 1, c: filteredTests.length } });
 
     // Append Sheet and Write File
-    XLSX.utils.book_append_sheet(wb, ws, "MedRank Scores");
-    XLSX.writeFile(wb, "MedRank_Master_Sheet.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, `MedRank_${activeExamTab}`);
+    XLSX.writeFile(wb, `MedRank_${activeExamTab}_Sheet.xlsx`);
   };
+
+  const TABS: { id: ExamMode; label: string; icon: React.ReactNode }[] = [
+    { id: 'NEET_PG', label: 'NEET PG', icon: <Stethoscope size={16} /> },
+    { id: 'INI_CET', label: 'INI CET', icon: <GraduationCap size={16} /> },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
@@ -260,7 +273,7 @@ const App: React.FC = () => {
               <button
                 onClick={handleExportToExcel}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm"
-                title="Download as Excel"
+                title={`Export ${activeExamTab.replace('_', ' ')} Data`}
               >
                 <Download size={18} />
                 <span className="hidden lg:inline">Export</span>
@@ -313,19 +326,35 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-               <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Performance Dashboard</h1>
-                  <p className="text-gray-500 text-sm">Welcome, Doctor. Tracking {tests.length} tests.</p>
-               </div>
-               
-               <div className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-gray-200 shadow-sm">
+            {/* Dashboard Tabs (Exam Mode Switcher) */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex p-1 bg-gray-200 rounded-xl">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveExamTab(tab.id);
+                      setAiAnalysis(''); // Clear AI analysis when switching dashboards
+                    }}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                      activeExamTab === tab.id
+                        ? 'bg-white text-indigo-700 shadow-md ring-1 ring-black/5'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-sm w-full md:w-auto">
                  <Filter size={16} className="text-gray-400 ml-2" />
                  <select 
                    value={filterCategory}
                    onChange={(e) => setFilterCategory(e.target.value as SubjectCategory | 'ALL')}
-                   className="bg-transparent border-none text-sm font-medium focus:ring-0 text-gray-700 cursor-pointer outline-none pr-8"
+                   className="bg-transparent border-none text-sm font-medium focus:ring-0 text-gray-700 cursor-pointer outline-none pr-8 py-1"
                  >
                    <option value="ALL">All Categories</option>
                    <option value="RANK_BUILDING">Rank Building</option>
@@ -335,9 +364,18 @@ const App: React.FC = () => {
                </div>
             </div>
 
+            {/* Header Stats */}
+             <div>
+                <h1 className="text-2xl font-bold text-gray-900">{activeExamTab.replace('_', ' ')} Dashboard</h1>
+                <p className="text-gray-500 text-sm">
+                  Tracking {filteredTests.length} {activeExamTab.replace('_', ' ')} tests.
+                  {filteredTests.length === 0 && " No tests found for this category."}
+                </p>
+             </div>
+
             {/* Score Table */}
             <ScoreTable 
-              tests={tests} 
+              tests={filteredTests} 
               filterCategory={filterCategory}
               onEdit={handleEditTest}
               onDelete={handleDeleteTest}
@@ -369,15 +407,23 @@ const App: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-3xl font-bold mb-2">AI Performance Coach</h2>
-                  <p className="text-indigo-200">Get personalized analysis of your weak spots and strategic advice to improve your rank.</p>
+                  <p className="text-indigo-200">
+                    Get personalized analysis for your <span className="font-bold text-white">{activeExamTab.replace('_', ' ')}</span> performance.
+                  </p>
                 </div>
                 <BrainCircuit size={48} className="text-indigo-300 opacity-50" />
               </div>
               
               <div className="mt-8">
-                {tests.length === 0 ? (
+                {filteredTests.length === 0 ? (
                   <div className="bg-white/10 rounded-lg p-4 text-center">
-                     <p>Please add at least one test result to unlock AI analysis.</p>
+                     <p>Please add at least one {activeExamTab.replace('_', ' ')} test result to unlock AI analysis.</p>
+                     <button 
+                        onClick={() => setActiveTab('DASHBOARD')}
+                        className="text-indigo-200 underline mt-2 text-sm hover:text-white"
+                     >
+                        Go to Dashboard
+                     </button>
                   </div>
                 ) : (
                   <button
@@ -388,7 +434,7 @@ const App: React.FC = () => {
                     {isAnalyzing ? (
                       <>
                         <div className="animate-spin h-5 w-5 border-2 border-indigo-900 border-t-transparent rounded-full"></div>
-                        Analyzing Scores...
+                        Analyzing {activeExamTab.replace('_', ' ')} Scores...
                       </>
                     ) : (
                       'Generate Analysis'
@@ -400,14 +446,14 @@ const App: React.FC = () => {
 
             {aiAnalysis && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 animate-fade-in">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Coach's Report</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Coach's Report ({activeExamTab.replace('_', ' ')})</h3>
                 <div className="prose prose-indigo max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
                   {aiAnalysis}
                 </div>
               </div>
             )}
             
-            {!aiAnalysis && tests.length > 0 && !isAnalyzing && (
+            {!aiAnalysis && filteredTests.length > 0 && !isAnalyzing && (
               <div className="text-center py-12 text-gray-400">
                 Click the button above to generate your report.
               </div>
@@ -421,8 +467,9 @@ const App: React.FC = () => {
         <AddTestModal 
           onClose={handleCloseModal} 
           onSave={handleSaveTest}
-          testCount={tests.length}
+          testCount={filteredTests.length}
           initialData={editingTest || undefined}
+          defaultMode={activeExamTab}
         />
       )}
     </div>

@@ -4,6 +4,7 @@ import { Subject, ExamMode } from '../types';
 interface ScoreInputRowProps {
   subject: Subject;
   mode: ExamMode;
+  isDirectEntry: boolean;
   values: {
     correct: number;
     wrong: number;
@@ -13,11 +14,11 @@ interface ScoreInputRowProps {
   onChange: (subjectId: string, field: string, value: number) => void;
 }
 
-const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, onChange }) => {
+const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, isDirectEntry, values, onChange }) => {
   
   // Auto-calculate logic when Correct/Wrong changes
   useEffect(() => {
-    if (mode === 'CUSTOM') return;
+    if (isDirectEntry) return;
 
     let calculatedObtained = 0;
     let calculatedTotal = 0;
@@ -47,7 +48,7 @@ const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, on
       onChange(subject.id, 'total', finalTotal);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values.correct, values.wrong, mode]);
+  }, [values.correct, values.wrong, mode, isDirectEntry]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-center p-2 border-b border-gray-100 hover:bg-gray-50">
@@ -62,7 +63,7 @@ const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, on
         {subject.name}
       </div>
 
-      {(mode === 'NEET_PG' || mode === 'INI_CET') ? (
+      {!isDirectEntry ? (
         <>
           <div>
             <label className="block text-xs text-gray-400 md:hidden">Correct</label>
@@ -88,7 +89,9 @@ const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, on
           </div>
         </>
       ) : (
-        <div className="hidden md:block md:col-span-2"></div>
+        <div className="hidden md:block md:col-span-2 text-center text-xs text-gray-400 italic">
+          Direct Entry
+        </div>
       )}
 
       <div>
@@ -98,9 +101,9 @@ const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, on
           step="0.01"
           value={values.obtained === 0 ? '' : values.obtained}
           onChange={(e) => onChange(subject.id, 'obtained', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${mode !== 'CUSTOM' ? 'bg-gray-50 text-gray-500' : ''}`}
+          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${!isDirectEntry ? 'bg-gray-50 text-gray-500' : ''}`}
           placeholder="0.00"
-          readOnly={mode !== 'CUSTOM'}
+          readOnly={!isDirectEntry}
         />
       </div>
 
@@ -111,9 +114,9 @@ const ScoreInputRow: React.FC<ScoreInputRowProps> = ({ subject, mode, values, on
           min="1"
           value={values.total === 0 ? '' : values.total}
           onChange={(e) => onChange(subject.id, 'total', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${mode !== 'CUSTOM' ? 'bg-gray-50 text-gray-500' : ''}`}
+          className={`w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${!isDirectEntry ? 'bg-gray-50 text-gray-500' : ''}`}
           placeholder="0"
-          readOnly={mode !== 'CUSTOM'}
+          readOnly={!isDirectEntry}
         />
       </div>
     </div>

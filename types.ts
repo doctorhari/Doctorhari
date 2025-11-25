@@ -1,6 +1,6 @@
 export type SubjectCategory = 'RANK_BUILDING' | 'RANK_MAINTAINING' | 'RANK_DECIDING';
 
-export type ExamMode = 'NEET_PG' | 'INI_CET' | 'CUSTOM';
+export type ExamMode = 'NEET_PG' | 'INI_CET';
 
 export interface Subject {
   id: string;

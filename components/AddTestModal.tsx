@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calculator } from 'lucide-react';
+import { X, Save, Calculator, Edit3 } from 'lucide-react';
 import { SUBJECTS } from '../constants';
 import { GrandTest, ExamMode, SubjectScore } from '../types';
 import ScoreInputRow from './ScoreInputRow';
@@ -9,13 +9,46 @@ interface AddTestModalProps {
   onSave: (test: GrandTest) => void;
   testCount: number;
   initialData?: GrandTest;
+  defaultMode?: ExamMode;
 }
 
-const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount, initialData }) => {
+const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount, initialData, defaultMode = 'NEET_PG' }) => {
   const [testName, setTestName] = useState(`GT${testCount + 1}`);
-  const [mode, setMode] = useState<ExamMode>('NEET_PG');
+  // Mode is strictly controlled by the dashboard or initial data, not selectable by user directly here
+  const [mode] = useState<ExamMode>(initialData?.mode || defaultMode);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
+  // Determine if we should start in direct entry mode
+  // If editing, check if scores align with formula. If not, assume direct entry.
+  const [isDirectEntry, setIsDirectEntry] = useState(() => {
+    if (!initialData) return false;
+    
+    // Heuristic: Check one non-empty subject to see if values match calculation
+    for (const sub of SUBJECTS) {
+      const s = initialData.scores[sub.id];
+      if (s && s.totalMarks > 0) {
+        const correct = s.correct || 0;
+        const wrong = s.wrong || 0;
+        const obtained = s.obtainedMarks;
+        
+        // Calculate expected based on mode
+        let expected = 0;
+        if (initialData.mode === 'NEET_PG') {
+          expected = (correct * 4) - wrong;
+        } else {
+           // INI CET
+           expected = correct - (wrong * 0.33);
+        }
+        
+        // Allow small float tolerance
+        if (Math.abs(expected - obtained) > 0.1) {
+          return true; // Likely direct entry
+        }
+      }
+    }
+    return false;
+  });
+
   // Initialize state for all subjects
   const [subjectData, setSubjectData] = useState<Record<string, { correct: number; wrong: number; obtained: number; total: number }>>(() => {
     const initial: any = {};
@@ -29,7 +62,6 @@ const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount,
   useEffect(() => {
     if (initialData) {
       setTestName(initialData.name);
-      setMode(initialData.mode);
       setDate(initialData.date);
       
       const loadedScores: any = {};
@@ -94,8 +126,15 @@ const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount,
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-600 text-white">
           <div>
-            <h2 className="text-2xl font-bold">{initialData ? 'Edit Test Result' : 'New Grand Test Entry'}</h2>
-            <p className="text-indigo-200 text-sm">{initialData ? 'Update your marks' : 'Enter your marks or use the calculator'}</p>
+            <div className="flex items-center gap-2 mb-1">
+               <h2 className="text-2xl font-bold">{initialData ? 'Edit Test' : 'Add Test'}</h2>
+               <span className="bg-indigo-500/50 px-2 py-0.5 rounded text-xs uppercase tracking-wide font-semibold border border-indigo-400">
+                  {mode.replace('_', ' ')}
+               </span>
+            </div>
+            <p className="text-indigo-200 text-sm">
+               {isDirectEntry ? 'Entering marks directly' : `Calculating based on ${mode.replace('_', ' ')} negative marking`}
+            </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-indigo-500 rounded-full transition-colors">
             <X size={24} />
@@ -114,18 +153,19 @@ const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount,
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Calculation Mode</label>
-            <div className="relative">
-              <select 
-                value={mode} 
-                onChange={(e) => setMode(e.target.value as ExamMode)}
-                className="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border appearance-none"
-              >
-                <option value="NEET_PG">NEET PG (x4 / -1)</option>
-                <option value="INI_CET">INI CET (x1 / -0.33)</option>
-                <option value="CUSTOM">Direct Marks Entry</option>
-              </select>
-              <Calculator className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Entry Method</label>
+            <div className={`border rounded-md p-2 flex items-center gap-2 ${isDirectEntry ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-300'}`}>
+                <input 
+                  type="checkbox"
+                  id="directEntry"
+                  checked={isDirectEntry}
+                  onChange={(e) => setIsDirectEntry(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="directEntry" className="text-sm text-gray-700 select-none flex items-center gap-2 cursor-pointer w-full">
+                  {isDirectEntry ? <Edit3 size={14} className="text-indigo-600"/> : <Calculator size={14} className="text-gray-400"/>}
+                  Direct Marks Entry
+                </label>
             </div>
           </div>
           <div>
@@ -142,13 +182,14 @@ const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount,
         {/* Rows Header - Desktop */}
         <div className="hidden md:grid grid-cols-6 gap-2 px-6 py-2 bg-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b">
           <div className="col-span-2">Subject</div>
-          {(mode !== 'CUSTOM') && (
+          {!isDirectEntry ? (
             <>
               <div>Correct</div>
               <div>Wrong</div>
             </>
+          ) : (
+            <div className="col-span-2 text-center text-gray-400 font-normal normal-case italic">Manual Entry Mode</div>
           )}
-          {mode === 'CUSTOM' && <div className="col-span-2"></div>}
           <div>Obtained</div>
           <div>Total Marks</div>
         </div>
@@ -160,6 +201,7 @@ const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount,
               key={subject.id}
               subject={subject}
               mode={mode}
+              isDirectEntry={isDirectEntry}
               values={subjectData[subject.id]}
               onChange={handleRowChange}
             />
@@ -179,7 +221,7 @@ const AddTestModal: React.FC<AddTestModalProps> = ({ onClose, onSave, testCount,
             className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg font-medium"
           >
             <Save size={18} />
-            {initialData ? 'Update Test Result' : 'Save Test Result'}
+            Save Test Result
           </button>
         </div>
       </div>
